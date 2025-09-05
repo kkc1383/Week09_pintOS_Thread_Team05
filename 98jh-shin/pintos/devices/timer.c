@@ -36,7 +36,7 @@ static void real_time_sleep(int64_t num, int32_t denom);
 static struct list sleep_list;
 
 // helper function()
-static bool less_by_wakeup_tick(struct list_elem *elem1, struct list_elem *elem2);
+static bool less_by_wakeup_tick(const struct list_elem *elem1, const struct list_elem *elem2, void *aux);
 
 /* Sets up the 8254 Programmable Interval Timer (PIT) to
    interrupt PIT_FREQ times per second, and registers the
@@ -104,7 +104,7 @@ void timer_sleep(int64_t ticks) {
   current_thread->wakeup_tick = start + ticks;
 
   thread_block();
-  list_insert_ordered(&sleep_list, current_thread->elem);
+  list_insert_ordered(&sleep_list, &current_thread->elem, less_by_wakeup_tick, NULL);
   // ASSERT(intr_get_level () == INTR_ON);
   // while (timer_elapsed(start) < ticks)
   //     thread_yield();
@@ -197,7 +197,7 @@ static void real_time_sleep(int64_t num, int32_t denom) {
   }
 }
 // 여기서부턴 함수 추가
-static bool less_by_wakeup_tick(struct list_elem *elem1, struct list_elem *elem2) {
+static bool less_by_wakeup_tick(const struct list_elem *elem1,const struct list_elem *elem2, void *aux) {
   struct thread *t1 = list_entry(elem1, struct thread, elem);
   struct thread *t2 = list_entry(elem2, struct thread, elem);
 
