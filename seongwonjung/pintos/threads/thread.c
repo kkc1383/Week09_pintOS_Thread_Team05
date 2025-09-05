@@ -590,14 +590,18 @@ void thread_sleep_until(int64_t wake_tick) {
 /* now_tick 이상인 잠자는 스레드를 깨우는 함수(오름차순 sleep_list 가정) */
 void thread_wake_expired(int64_t now_tick) {
   enum intr_level old_level = intr_disable();
-
+  bool need_preempt = false;
   while (!list_empty(&sleep_list)) {
     struct thread *t = list_entry(list_front(&sleep_list), struct thread, elem);
-    if (now_tick >= t->wakeup_tick) {
-      list_pop_front(&sleep_list); /* 만기 스레드 제거 */
-      thread_unblock(t);           /* READY로 전환 */
+    if (now_tick < t->wakeup_tick) {
+      break;
+    }
+    list_pop_front(&sleep_list); /* 만기 스레드 제거 */
+    thread_unblock(t);           /* READY로 전환 */
+    if (t->priority > thread_current()->priority) {
+      need_preempt = true;
     }
   }
-
+  if (need_preempt && intr_context()) intr_yield_on_return();
   intr_set_level(old_level);
 }
