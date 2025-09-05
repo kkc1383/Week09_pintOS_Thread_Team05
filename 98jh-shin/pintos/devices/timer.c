@@ -103,12 +103,12 @@ void timer_sleep(int64_t ticks) {
 
   current_thread->wakeup_tick = start + ticks;
 
-  thread_block();
   list_insert_ordered(&sleep_list, &current_thread->elem, less_by_wakeup_tick, NULL);
+  thread_block();
   // ASSERT(intr_get_level () == INTR_ON);
   // while (timer_elapsed(start) < ticks)
   //     thread_yield();
-  timer_elapsed();
+  // timer_elapsed();
 }
 
 /* Suspends execution for approximately MS milliseconds. */
@@ -135,12 +135,22 @@ void timer_print_stats(void) {
 static void timer_interrupt(struct intr_frame* args UNUSED) {
   ticks++;
   thread_tick();
-  struct thread* current_thread = thread_current();
 
-  int64_t wakeup_ticks = current_thread->wakeup_tick;
-  if (wakeup_ticks < ticks) {
-    thread_unblock(current_thread);
+
+  while (!list_empty(&sleep_list)) {
+    struct list_elem *cur_elem = list_front(&sleep_list);
+    struct thread *t = list_entry(cur_elem, struct thread, elem);
+
+    if (t->wakeup_tick > ticks) {
+      break;
+    }
+
+    list_pop_front(&sleep_list);
+
+    thread_unblock(t);
   }
+
+
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
