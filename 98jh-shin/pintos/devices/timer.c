@@ -20,8 +20,7 @@
 /* Number of timer ticks since OS booted. */
 static int64_t ticks;
 
-// 잠든 thread 를 보관할 리스트
-static struct list sleep_list;
+
 
 /* Number of loops per timer tick.
    Initialized by timer_calibrate(). */
@@ -31,6 +30,13 @@ static intr_handler_func timer_interrupt;
 static bool too_many_loops(unsigned loops);
 static void busy_wait(int64_t loops);
 static void real_time_sleep(int64_t num, int32_t denom);
+
+/* 여기서부턴 내가 추가한 전역 변수,함수 등 */
+// 잠든 thread 를 보관할 리스트
+static struct list sleep_list;
+
+// helper function()
+static bool less_by_wakeup_tick(struct list_elem *elem1, struct list_elem *elem2);
 
 /* Sets up the 8254 Programmable Interval Timer (PIT) to
    interrupt PIT_FREQ times per second, and registers the
@@ -95,13 +101,14 @@ void timer_sleep(int64_t ticks) {
   int64_t start = timer_ticks();
   struct thread* current_thread = thread_current();
 
-  current_thread->wakeup_ticks = start + ticks;
+  current_thread->wakeup_tick = start + ticks;
 
   thread_block();
   list_insert_ordered(&sleep_list, current_thread->elem);
   // ASSERT(intr_get_level () == INTR_ON);
   // while (timer_elapsed(start) < ticks)
   //     thread_yield();
+  timer_elapsed();
 }
 
 /* Suspends execution for approximately MS milliseconds. */
@@ -130,7 +137,7 @@ static void timer_interrupt(struct intr_frame* args UNUSED) {
   thread_tick();
   struct thread* current_thread = thread_current();
 
-  int64_t wakeup_ticks = current_thread->wakeup_ticks;
+  int64_t wakeup_ticks = current_thread->wakeup_tick;
   if (wakeup_ticks < ticks) {
     thread_unblock(current_thread);
   }
@@ -188,4 +195,11 @@ static void real_time_sleep(int64_t num, int32_t denom) {
     ASSERT(denom % 1000 == 0);
     busy_wait(loops_per_tick * num / 1000 * TIMER_FREQ / (denom / 1000));
   }
+}
+// 여기서부턴 함수 추가
+static bool less_by_wakeup_tick(struct list_elem *elem1, struct list_elem *elem2) {
+  struct thread *t1 = list_entry(elem1, struct thread, elem);
+  struct thread *t2 = list_entry(elem2, struct thread, elem);
+
+  return t1->wakeup_tick < t2->wakeup_tick;
 }
