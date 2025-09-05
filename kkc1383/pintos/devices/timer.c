@@ -30,6 +30,7 @@ static intr_handler_func timer_interrupt;
 static bool too_many_loops(unsigned loops);
 static void busy_wait(int64_t loops);
 static void real_time_sleep(int64_t num, int32_t denom);
+static bool wake_tick_less(const struct list_elem *a, const struct list_elem *b, void *aux);
 
 static struct list sleep_list;  // sleep_list를 관리할 이중 연결리스트 생성
 
@@ -99,7 +100,7 @@ void timer_sleep(int64_t ticks) {
   struct thread *curr = thread_current();
 
   // wake_tick 설정
-  int64_t wake_tick = start + ticks;
+  curr->wake_tick = start + ticks;
 
   // 인터럽트 끄기
   enum intr_level old_level = intr_disable();
@@ -130,6 +131,16 @@ void timer_print_stats(void) { printf("Timer: %" PRId64 " ticks\n", timer_ticks(
 static void timer_interrupt(struct intr_frame *args UNUSED) {
   ticks++;
   thread_tick();
+
+  // 잠든 쓰레드를 깨우자
+  while (!list_empty(&sleep_list)) {
+    struct thread *sleep_thread = list_entry(list_front(&sleep_list), struct thread, sleep_elem);
+    if (sleep_thread->wake_tick > ticks)  // wake_tick이 흐른 시간보다 크다면, 아직 깨울 때가 아님
+      break;
+    //깨울 때라면
+    list_pop_front(&sleep_list);
+    thread_unblock(sleep_thread);
+  }
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
