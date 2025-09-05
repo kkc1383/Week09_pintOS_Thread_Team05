@@ -92,8 +92,26 @@ void timer_sleep(int64_t ticks) {
 
   ASSERT(intr_get_level() == INTR_ON);
 
-  // 시간이 지남에 따라서
-  while (timer_elapsed(start) < ticks) thread_yield();
+  // edge case 처리 : tick가 0 이하라면?
+  if (ticks <= 0) return;
+
+  // 현제 스레드 가져오기
+  struct thread *curr = thread_current();
+
+  // wake_tick 설정
+  int64_t wake_tick = start + ticks;
+
+  // 인터럽트 끄기
+  enum intr_level old_level = intr_disable();
+
+  // sleep_list에 추가
+  list_insert_ordered(&sleep_list, &curr->sleep_elem, wake_tick_less, NULL);
+
+  // thread_block() 호출, 재 schedule 될 때까지 대기
+  thread_block();
+
+  // 인터럽트 복원
+  intr_set_level(old_level);
 }
 
 /* Suspends execution for approximately MS milliseconds. */
@@ -164,4 +182,11 @@ static void real_time_sleep(int64_t num, int32_t denom) {
     ASSERT(denom % 1000 == 0);
     busy_wait(loops_per_tick * num / 1000 * TIMER_FREQ / (denom / 1000));
   }
+}
+
+static bool wake_tick_less(const struct list_elem *a, const struct list_elem *b, void *aux) {
+  struct thread *thread_a = list_entry(a, struct thread, sleep_elem);
+  struct thread *thread_b = list_entry(b, struct thread, sleep_elem);
+
+  return thread_a->wake_tick < thread_b->wake_tick;
 }
