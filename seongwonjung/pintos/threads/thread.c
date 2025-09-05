@@ -30,11 +30,13 @@
    that are ready to run but not actually running. */
 static struct list ready_list;
 static struct list sleep_list;
-/* 주어진 tick 시각까지 현재 스레드를 재우는 함수 */
+
 void thread_sleep_until(int64_t wake_tick);
 /* wakeup_tick 비교를 위한 함수(오름차순) */
 bool cmp_wakeup_tick(const struct list_elem *a, const struct list_elem *b,
                      void *aux);
+
+void thread_wake_expired(int64_t now_tick);
 
 /* Idle thread. */
 static struct thread *idle_thread;
@@ -566,6 +568,7 @@ bool cmp_wakeup_tick(const struct list_elem *a, const struct list_elem *b,
   return A->wakeup_tick < B->wakeup_tick;
 }
 
+/* 주어진 tick 시각까지 현재 스레드를 재우는 함수 */
 void thread_sleep_until(int64_t wake_tick) {
   // 인터럽트 비활성화: 크리티컬 섹션 보호
   enum intr_level old_level = intr_disable();
@@ -581,5 +584,20 @@ void thread_sleep_until(int64_t wake_tick) {
   thread_block();
 
   // 이전 인터럽트 상태로 복원
+  intr_set_level(old_level);
+}
+
+/* now_tick 이상인 잠자는 스레드를 깨우는 함수(오름차순 sleep_list 가정) */
+void thread_wake_expired(int64_t now_tick) {
+  enum intr_level old_level = intr_disable();
+
+  while (!list_empty(&sleep_list)) {
+    struct thread *t = list_entry(list_front(&sleep_list), struct thread, elem);
+    if (now_tick >= t->wakeup_tick) {
+      list_pop_front(&sleep_list); /* 만기 스레드 제거 */
+      thread_unblock(t);           /* READY로 전환 */
+    }
+  }
+
   intr_set_level(old_level);
 }
