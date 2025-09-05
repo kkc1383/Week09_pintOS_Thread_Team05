@@ -31,6 +31,6 @@ WORKDIR /home/jungle
 RUN echo "source /workspaces/Week09_pintOS_Thread_Team05/98jh-shin/pintos/activate" >> /home/jungle/.bashrc
 
 # Clone the repository
-# RUN git clone https://github.com/casys-kaist/pintos-kaist /home/jungle/pintos
+# RUN git clone https://github.com/casys-kaist/pintos-kaist /home/jungle/origin_pintos
 
 # Set default shell for the `jungle` user

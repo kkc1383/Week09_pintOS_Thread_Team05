@@ -29,3 +29,7 @@ core
 # macOS
 .DS_Store
 /98jh-shin/.clang-format
+.gitignore
+/.devcontainer/
+/.idea/
+/origin/
