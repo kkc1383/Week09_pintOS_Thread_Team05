@@ -30,6 +30,11 @@
    that are ready to run but not actually running. */
 static struct list ready_list;
 static struct list sleep_list;
+/* 주어진 tick 시각까지 현재 스레드를 재우는 함수 */
+void thread_sleep_until(int64_t wake_tick);
+/* wakeup_tick 비교를 위한 함수(오름차순) */
+bool cmp_wakeup_tick(const struct list_elem *a, const struct list_elem *b,
+                     void *aux);
 
 /* Idle thread. */
 static struct thread *idle_thread;
@@ -552,4 +557,29 @@ static tid_t allocate_tid(void) {
   lock_release(&tid_lock);
 
   return tid;
+}
+
+bool cmp_wakeup_tick(const struct list_elem *a, const struct list_elem *b,
+                     void *aux) {
+  const struct thread *A = list_entry(a, struct thread, elem);
+  const struct thread *B = list_entry(b, struct thread, elem);
+  return A->wakeup_tick < B->wakeup_tick;
+}
+
+void thread_sleep_until(int64_t wake_tick) {
+  // 인터럽트 비활성화: 크리티컬 섹션 보호
+  enum intr_level old_level = intr_disable();
+
+  struct thread *cur_thr = thread_current();
+
+  // idle thread는 절대 sleep 대상이 될 수 없음
+  ASSERT(cur_thr != idle_thread);
+
+  cur_thr->wakeup_tick = wake_tick;
+  // wakeup_tick 기준으로 오름차순 정렬된 sleep_list에 삽입
+  list_insert_ordered(&sleep_list, &(cur_thr->elem), cmp_wakeup_tick, NULL);
+  thread_block();
+
+  // 이전 인터럽트 상태로 복원
+  intr_set_level(old_level);
 }
