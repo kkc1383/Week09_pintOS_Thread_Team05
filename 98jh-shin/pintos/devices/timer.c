@@ -140,6 +140,7 @@ void timer_print_stats(void) {
 static void timer_interrupt(struct intr_frame* args UNUSED) {
   ticks++;
   thread_tick();
+  bool is_wake = false;
 
 
   while (!list_empty(&sleep_list)) {
@@ -153,9 +154,17 @@ static void timer_interrupt(struct intr_frame* args UNUSED) {
     list_pop_front(&sleep_list);
 
     thread_unblock(t);
+
+    is_wake = true;
   }
 
-
+  if (is_wake) {
+    struct thread *current_thread = thread_current();
+    int highest_priority = get_front_ready_list();
+    if (current_thread->priority < highest_priority) {
+      intr_yield_on_return();
+    }
+  }
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
