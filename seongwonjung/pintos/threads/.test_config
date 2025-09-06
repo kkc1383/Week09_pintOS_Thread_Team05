@@ -1,0 +1,21 @@
+# Alarm Clock Tests
+alarm-single: -- -q : tests/threads
+alarm-multiple: -- -q : tests/threads
+alarm-simultaneous: -- -q : tests/threads
+alarm-zero: -- -q : tests/threads
+alarm-negative: -- -q : tests/threads
+alarm-priority: -- -q : tests/threads
+
+# Priority Scheduling Tests
+priority-change: -- -q : tests/threads
+priority-donate-one: -- -q : tests/threads
+priority-donate-multiple: -- -q : tests/threads
+priority-donate-multiple2: -- -q : tests/threads
+priority-donate-nest: -- -q : tests/threads
+priority-donate-sema: -- -q : tests/threads
+priority-donate-lower: -- -q : tests/threads
+priority-fifo: -- -q : tests/threads
+priority-preempt: -- -q : tests/threads
+priority-sema: -- -q : tests/threads
+priority-condvar: -- -q : tests/threads
+priority-donate-chain: -- -q : tests/threads

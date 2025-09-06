@@ -32,3 +32,5 @@ RUN echo "source /workspaces/pintos_22.04_lab_docker/pintos/activate" >> /home/j
 
 # Clone the repository
 # RUN git clone https://github.com/casys-kaist/pintos-kaist /home/jungle/pintos
+
+# Set default shell for the `jungle` user
