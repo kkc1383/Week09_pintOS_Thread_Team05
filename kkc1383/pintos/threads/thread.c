@@ -275,7 +275,7 @@ void thread_exit(void) {
 
 /* Yields the CPU.  The current thread is not put to sleep and
    may be scheduled again immediately at the scheduler's whim. */
-void thread_yield(void) {
+void thread_yield(void) {  // 현재 스레드가 가장 높은 우선순위를 가진다면
   struct thread *curr = thread_current();
   enum intr_level old_level;
 
@@ -283,6 +283,14 @@ void thread_yield(void) {
 
   old_level = intr_disable();
   if (curr != idle_thread) {
+    if (!list_empty(&ready_list)) {
+      struct thread *highest = list_entry(list_front(&ready_list), struct thread, elem);
+
+      if (curr->priority > highest->priority) {  // 현재 쓰레드가 ready_list에 있는 쓰레드들보다 우선순위가 높다면
+        intr_set_level(old_level);
+        return;  // yield를 할 필요가 없음.
+      }
+    }
     list_insert_ordered(&ready_list, &curr->elem, thread_priority_less, NULL);  // 우선순위 순으로 정렬하며 삽입
   }
   do_schedule(THREAD_READY);
@@ -290,7 +298,15 @@ void thread_yield(void) {
 }
 
 /* Sets the current thread's priority to NEW_PRIORITY. */
-void thread_set_priority(int new_priority) { thread_current()->priority = new_priority; }
+void thread_set_priority(int new_priority) {
+  struct thread *curr = thread_current();
+  int old_priority = curr->priority;
+  curr->priority = new_priority;
+
+  if (old_priority > new_priority) {  // 만약 우선순위가 더 낮아졌다면,
+    thread_yield();                   // yield를 통해 뒤로 보냄
+  }
+}
 
 /* Returns the current thread's priority. */
 int thread_get_priority(void) { return thread_current()->priority; }
