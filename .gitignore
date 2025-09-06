@@ -1,4 +1,3 @@
-# Pintos 빌드 중간 파일 및 산출물
 *.o
 *.d
 *.out
@@ -28,5 +27,8 @@ core
 
 # macOS
 .DS_Store
-
-.test_status
+/98jh-shin/.clang-format
+.gitignore
+/.devcontainer/
+/.idea/
+/origin/

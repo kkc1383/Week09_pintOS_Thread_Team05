@@ -316,7 +316,7 @@ usage (void) {
 			"  ls                 List files in the root directory.\n"
 			"  cat FILE           Print FILE to the console.\n"
 			"  rm FILE            Delete FILE.\n"
-			"Use these actions indirectly via `pintos' -g and -p options:\n"
+			"Use these actions indirectly via `origin_pintos' -g and -p options:\n"
 			"  put FILE           Put FILE into file system from scratch disk.\n"
 			"  get FILE           Get FILE from file system into scratch disk.\n"
 #endif
