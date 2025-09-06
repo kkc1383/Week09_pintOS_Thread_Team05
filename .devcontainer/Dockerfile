@@ -28,9 +28,7 @@ RUN echo "jungle ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/jungle
 USER jungle
 WORKDIR /home/jungle
 
-RUN echo "source /workspaces/Week09_pintOS_Thread_Team05/98jh-shin/pintos/activate" >> /home/jungle/.bashrc
+RUN echo "source /workspaces/pintos_22.04_lab_docker/pintos/activate" >> /home/jungle/.bashrc
 
 # Clone the repository
-# RUN git clone https://github.com/casys-kaist/pintos-kaist /home/jungle/origin_pintos
-
-# Set default shell for the `jungle` user
+# RUN git clone https://github.com/casys-kaist/pintos-kaist /home/jungle/pintos
