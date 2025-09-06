@@ -29,4 +29,4 @@ core
 # macOS
 .DS_Store
 
-**/.test_status
+.test_status
