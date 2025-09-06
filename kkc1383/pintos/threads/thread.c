@@ -236,11 +236,11 @@ void thread_unblock(struct thread *t) {
     if (intr_context()) {
       // 인터럽트 핸들러 내부: 나중에 yield
       intr_yield_on_return();
-      intr_set_level(old_level);
     } else if (thread_current() != idle_thread) {  // idle은 yield하지 않도록
       // 일반 컨텍스트: 플래그 설정
       intr_set_level(old_level);
       thread_yield();
+      return;  // 여기는 더 이상 할 게 없으므로 리턴
     }
   } else {
     intr_set_level(old_level);
@@ -289,18 +289,15 @@ void thread_exit(void) {
    may be scheduled again immediately at the scheduler's whim. */
 void thread_yield(void) {  // 현재 스레드가 가장 높은 우선순위를 가진다면
   struct thread *curr = thread_current();
-  enum intr_level old_level;
 
   ASSERT(!intr_context());
 
-  old_level = intr_disable();
+  enum intr_level old_level = intr_disable();
   if (curr != idle_thread) {
     if (!list_empty(&ready_list)) {
       struct thread *highest = list_entry(list_front(&ready_list), struct thread, elem);
       struct list_elem *e;
-      for (e = list_begin(&ready_list); e != list_end(&ready_list); e = list_next(e)) {
-        struct thread *t = list_entry(e, struct thread, elem);
-      }
+
       if (curr->priority > highest->priority) {  // 현재 쓰레드가 ready_list에 있는 쓰레드들보다 우선순위가 높다면
         intr_set_level(old_level);
         return;  // yield를 할 필요가 없음.
@@ -317,7 +314,7 @@ void thread_set_priority(int new_priority) {
   struct thread *curr = thread_current();
   int old_priority = curr->priority;
   curr->priority = new_priority;
-  if (old_priority > new_priority) {  // 만약 우선순위가 더 낮아졌다면,
+  if (old_priority > new_priority) {  // 만약 우선순위가 더 낮아졌고, ready_list에 원소가 있을 떄
     thread_yield();                   // yield를 통해 뒤로 보냄
   }
 }
@@ -534,6 +531,10 @@ static void do_schedule(int status) {
 }
 
 static void schedule(void) {
+  struct list_elem *e;
+  for (e = list_begin(&ready_list); e != list_end(&ready_list); e = list_next(e)) {
+    ;
+  }
   struct thread *curr = running_thread();      // 레지스터 rsp를 활용하여 현재 돌고
                                                // 있는 쓰레드 포인터를 찾음
   struct thread *next = next_thread_to_run();  // ready_list에서 쓰레드 하나를 pop 함.
