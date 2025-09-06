@@ -30,7 +30,7 @@
 /* List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
 static struct list ready_list;
-
+static struct list sleep_list;  // sleep_list를 관리할 이중 연결리스트 생성
 /* Idle thread. */
 static struct thread *idle_thread;
 
@@ -555,4 +555,11 @@ static tid_t allocate_tid(void) {
   lock_release(&tid_lock);
 
   return tid;
+}
+
+struct list *get_ready_list() {
+  return &ready_list;
+}
+struct list *get_sleep_list() {
+  return &sleep_list;
 }

@@ -32,8 +32,6 @@ static void busy_wait(int64_t loops);
 static void real_time_sleep(int64_t num, int32_t denom);
 static bool wake_tick_less(const struct list_elem *a, const struct list_elem *b, void *aux);
 
-static struct list sleep_list;  // sleep_list를 관리할 이중 연결리스트 생성
-
 /* Sets up the 8254 Programmable Interval Timer (PIT) to
    interrupt PIT_FREQ times per second, and registers the
    corresponding interrupt. */
@@ -48,7 +46,7 @@ void timer_init(void) {
 
   intr_register_ext(0x20, timer_interrupt, "8254 Timer");
 
-  list_init(&sleep_list);  // 전역 sleep_list 초기화
+  list_init(get_sleep_list());  // 전역 sleep_list 초기화
 }
 
 /* Calibrates loops_per_tick, used to implement brief delays. */
@@ -106,7 +104,7 @@ void timer_sleep(int64_t ticks) {
   enum intr_level old_level = intr_disable();
 
   // sleep_list에 추가
-  list_insert_ordered(&sleep_list, &curr->sleep_elem, wake_tick_less, NULL);
+  list_insert_ordered(get_sleep_list(), &curr->sleep_elem, wake_tick_less, NULL);
 
   // thread_block() 호출, 재 schedule 될 때까지 대기
   thread_block();
@@ -133,12 +131,12 @@ static void timer_interrupt(struct intr_frame *args UNUSED) {
   thread_tick();
 
   // 잠든 쓰레드를 깨우자
-  while (!list_empty(&sleep_list)) {
-    struct thread *sleep_thread = list_entry(list_front(&sleep_list), struct thread, sleep_elem);
+  while (!list_empty(get_sleep_list())) {
+    struct thread *sleep_thread = list_entry(list_front(get_sleep_list()), struct thread, sleep_elem);
     if (sleep_thread->wake_tick > ticks)  // wake_tick이 흐른 시간보다 크다면, 아직 깨울 때가 아님
       break;
     //깨울 때라면
-    list_pop_front(&sleep_list);
+    list_pop_front(get_sleep_list());
     thread_unblock(sleep_thread);
   }
 }
