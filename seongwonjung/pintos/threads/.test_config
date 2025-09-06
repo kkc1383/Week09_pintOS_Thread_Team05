@@ -2,9 +2,9 @@
 alarm-single: -- -q : tests/threads
 alarm-multiple: -- -q : tests/threads
 alarm-simultaneous: -- -q : tests/threads
-alarm-priority: -- -q : tests/threads
 alarm-zero: -- -q : tests/threads
 alarm-negative: -- -q : tests/threads
+alarm-priority: -- -q : tests/threads
 
 # Priority Scheduling Tests
 priority-change: -- -q : tests/threads
