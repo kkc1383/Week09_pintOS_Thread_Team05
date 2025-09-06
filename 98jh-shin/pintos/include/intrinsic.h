@@ -106,12 +106,12 @@ static __inline uint64_t rrcx(void) {
 	return val;
 }
 
-__attribute__((always_inline))
-static __inline uint64_t rrsp(void) {
+__attribute__((always_inline)) static __inline uint64_t rrsp(void) {
 	uint64_t val;
 	__asm __volatile("movq %%rsp,%0" : "=r" (val));
 	return val;
 }
+
 __attribute__((always_inline))
 static __inline uint64_t rcr2(void) {
 	uint64_t val;

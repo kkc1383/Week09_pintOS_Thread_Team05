@@ -81,7 +81,6 @@ static uint64_t gdt[3] = {0, 0x00af9a000000ffff, 0x00cf92000000ffff};
 
 // 여기부턴 내가 만듬
 static bool thread_priority_higher(const struct list_elem* elem1, const struct list_elem* elem2, void* aux);
-int get_highest_priority_ready();
 
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
