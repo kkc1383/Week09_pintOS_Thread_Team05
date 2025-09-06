@@ -229,10 +229,23 @@ void thread_unblock(struct thread *t) {
                                         // 반환(기존 상태 저장해놓고, disable 만듬)
   ASSERT(t->status == THREAD_BLOCKED);  // 해당 쓰레드의 status 필드가 THREAD_BLOCKED인지 확인
   list_insert_ordered(&ready_list, &t->elem, thread_priority_less, NULL);  // 우선순위 큰 순서대로 삽입
-  t->status = THREAD_READY;   // 해당 쓰레드의 상태를 THREAD_READY로 바꿈
-  intr_set_level(old_level);  // 기존 상태 불러오기
-}
+  t->status = THREAD_READY;  // 해당 쓰레드의 상태를 THREAD_READY로 바꿈
 
+  // 인터럽트끝나고 보내야할 경우에
+  if (t->priority > thread_current()->priority) {
+    if (intr_context()) {
+      // 인터럽트 핸들러 내부: 나중에 yield
+      intr_yield_on_return();
+      intr_set_level(old_level);
+    } else if (thread_current() != idle_thread) {  // idle은 yield하지 않도록
+      // 일반 컨텍스트: 플래그 설정
+      intr_set_level(old_level);
+      thread_yield();
+    }
+  } else {
+    intr_set_level(old_level);
+  }
+}
 /* Returns the name of the running thread. */
 const char *thread_name(void) { return thread_current()->name; }
 
@@ -287,7 +300,6 @@ void thread_yield(void) {  // 현재 스레드가 가장 높은 우선순위를 
       struct list_elem *e;
       for (e = list_begin(&ready_list); e != list_end(&ready_list); e = list_next(e)) {
         struct thread *t = list_entry(e, struct thread, elem);
-        printf("  - %s (priority: %d)\n", t->name, t->priority);
       }
       if (curr->priority > highest->priority) {  // 현재 쓰레드가 ready_list에 있는 쓰레드들보다 우선순위가 높다면
         intr_set_level(old_level);
@@ -305,10 +317,8 @@ void thread_set_priority(int new_priority) {
   struct thread *curr = thread_current();
   int old_priority = curr->priority;
   curr->priority = new_priority;
-  printf("old_priority: %d, new_priority: %d\n", old_priority, new_priority);
   if (old_priority > new_priority) {  // 만약 우선순위가 더 낮아졌다면,
-    printf("calling thread_yield()\n");
-    thread_yield();  // yield를 통해 뒤로 보냄
+    thread_yield();                   // yield를 통해 뒤로 보냄
   }
 }
 
