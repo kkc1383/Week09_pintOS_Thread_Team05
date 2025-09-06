@@ -144,4 +144,6 @@ int thread_get_load_avg(void);
 
 void do_iret(struct intr_frame* tf);
 
+int get_highest_priority_ready();
+
 #endif /* threads/thread.h */

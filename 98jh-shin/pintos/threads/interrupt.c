@@ -244,8 +244,7 @@ intr_register_ext (uint8_t vec_no, intr_handler_func *handler,
    [IA32-v3a] sections 4.5 "Privilege Levels" and 4.8.1.1
    "Accessing Nonconforming Code Segments" for further
    discussion. */
-void
-intr_register_int (uint8_t vec_no, int dpl, enum intr_level level,
+void intr_register_int (uint8_t vec_no, int dpl, enum intr_level level,
 		intr_handler_func *handler, const char *name)
 {
 	ASSERT (vec_no < 0x20 || vec_no > 0x2f);
@@ -254,8 +253,7 @@ intr_register_int (uint8_t vec_no, int dpl, enum intr_level level,
 
 /* Returns true during processing of an external interrupt
    and false at all other times. */
-bool
-intr_context (void) {
+bool intr_context (void) {
 	return in_external_intr;
 }
 
@@ -263,8 +261,7 @@ intr_context (void) {
    interrupt handler to yield to a new process just before
    returning from the interrupt.  May not be called at any other
    time. */
-void
-intr_yield_on_return (void) {
+void intr_yield_on_return (void) {
 	ASSERT (intr_context ());
 	yield_on_return = true;
 }
