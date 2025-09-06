@@ -65,6 +65,7 @@ static void init_thread(struct thread *, const char *name, int priority);
 static void do_schedule(int status);
 static void schedule(void);
 static tid_t allocate_tid(void);
+static bool thread_priority_less(const struct list_elem *a, const struct list_elem *b, void *aux);
 
 /* Returns true if T appears to point to a valid thread. */
 #define is_thread(t) ((t) != NULL && (t)->magic == THREAD_MAGIC)
@@ -225,12 +226,12 @@ void thread_unblock(struct thread *t) {
 
   ASSERT(is_thread(t));
 
-  old_level = intr_disable();             // 인터럽트를 disable상태로 만들고 이전 상태를
-                                          // 반환(기존 상태 저장해놓고, disable 만듬)
-  ASSERT(t->status == THREAD_BLOCKED);    // 해당 쓰레드의 status 필드가 THREAD_BLOCKED인지 확인
-  list_push_back(&ready_list, &t->elem);  //해당 쓰레드를 ready_list에 넣음
-  t->status = THREAD_READY;               // 해당 쓰레드의 상태를 THREAD_READY로 바꿈
-  intr_set_level(old_level);              // 기존 상태 불러오기
+  old_level = intr_disable();           // 인터럽트를 disable상태로 만들고 이전 상태를
+                                        // 반환(기존 상태 저장해놓고, disable 만듬)
+  ASSERT(t->status == THREAD_BLOCKED);  // 해당 쓰레드의 status 필드가 THREAD_BLOCKED인지 확인
+  list_insert_ordered(&ready_list, &t->elem, thread_priority_less, NULL);  // 우선순위 큰 순서대로 삽입
+  t->status = THREAD_READY;   // 해당 쓰레드의 상태를 THREAD_READY로 바꿈
+  intr_set_level(old_level);  // 기존 상태 불러오기
 }
 
 /* Returns the name of the running thread. */
@@ -281,7 +282,9 @@ void thread_yield(void) {
   ASSERT(!intr_context());
 
   old_level = intr_disable();
-  if (curr != idle_thread) list_push_back(&ready_list, &curr->elem);
+  if (curr != idle_thread) {
+    list_insert_ordered(&ready_list, &curr->elem, thread_priority_less, NULL);  // 우선순위 순으로 정렬하며 삽입
+  }
   do_schedule(THREAD_READY);
   intr_set_level(old_level);
 }
@@ -562,4 +565,11 @@ struct list *get_ready_list() {
 }
 struct list *get_sleep_list() {
   return &sleep_list;
+}
+
+static bool thread_priority_less(const struct list_elem *a, const struct list_elem *b, void *aux) {
+  struct thread *thread_a = list_entry(a, struct thread, sleep_elem);
+  struct thread *thread_b = list_entry(b, struct thread, sleep_elem);
+
+  return thread_a->priority > thread_b->priority;
 }
