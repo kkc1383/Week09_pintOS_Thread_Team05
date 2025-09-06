@@ -149,4 +149,6 @@ void do_iret(struct intr_frame *tf);
 struct list *get_ready_list();
 struct list *get_sleep_list();
 
+bool thread_priority_less(const struct list_elem *a, const struct list_elem *b, void *aux);
+
 #endif /* threads/thread.h */

@@ -225,14 +225,27 @@ void thread_unblock(struct thread *t) {
 
   ASSERT(is_thread(t));
 
-  old_level = intr_disable();             // 인터럽트를 disable상태로 만들고 이전 상태를
-                                          // 반환(기존 상태 저장해놓고, disable 만듬)
-  ASSERT(t->status == THREAD_BLOCKED);    // 해당 쓰레드의 status 필드가 THREAD_BLOCKED인지 확인
-  list_push_back(&ready_list, &t->elem);  //해당 쓰레드를 ready_list에 넣음
-  t->status = THREAD_READY;               // 해당 쓰레드의 상태를 THREAD_READY로 바꿈
-  intr_set_level(old_level);              // 기존 상태 불러오기
-}
+  old_level = intr_disable();           // 인터럽트를 disable상태로 만들고 이전 상태를
+                                        // 반환(기존 상태 저장해놓고, disable 만듬)
+  ASSERT(t->status == THREAD_BLOCKED);  // 해당 쓰레드의 status 필드가 THREAD_BLOCKED인지 확인
+  list_insert_ordered(&ready_list, &t->elem, thread_priority_less, NULL);  // 우선순위 큰 순서대로 삽입
+  t->status = THREAD_READY;  // 해당 쓰레드의 상태를 THREAD_READY로 바꿈
 
+  // 인터럽트끝나고 보내야할 경우에
+  if (t->priority > thread_current()->priority) {
+    if (intr_context()) {
+      // 인터럽트 핸들러 내부: 나중에 yield
+      intr_yield_on_return();
+    } else if (thread_current() != idle_thread) {  // idle은 yield하지 않도록
+      // 일반 컨텍스트: 플래그 설정
+      intr_set_level(old_level);
+      thread_yield();
+      return;  // 여기는 더 이상 할 게 없으므로 리턴
+    }
+  } else {
+    intr_set_level(old_level);
+  }
+}
 /* Returns the name of the running thread. */
 const char *thread_name(void) { return thread_current()->name; }
 
@@ -274,20 +287,37 @@ void thread_exit(void) {
 
 /* Yields the CPU.  The current thread is not put to sleep and
    may be scheduled again immediately at the scheduler's whim. */
-void thread_yield(void) {
+void thread_yield(void) {  // 현재 스레드가 가장 높은 우선순위를 가진다면
   struct thread *curr = thread_current();
-  enum intr_level old_level;
 
   ASSERT(!intr_context());
 
-  old_level = intr_disable();
-  if (curr != idle_thread) list_push_back(&ready_list, &curr->elem);
+  enum intr_level old_level = intr_disable();
+  if (curr != idle_thread) {
+    if (!list_empty(&ready_list)) {
+      struct thread *highest = list_entry(list_front(&ready_list), struct thread, elem);
+      struct list_elem *e;
+
+      if (curr->priority > highest->priority) {  // 현재 쓰레드가 ready_list에 있는 쓰레드들보다 우선순위가 높다면
+        intr_set_level(old_level);
+        return;  // yield를 할 필요가 없음.
+      }
+    }
+    list_insert_ordered(&ready_list, &curr->elem, thread_priority_less, NULL);  // 우선순위 순으로 정렬하며 삽입
+  }
   do_schedule(THREAD_READY);
   intr_set_level(old_level);
 }
 
 /* Sets the current thread's priority to NEW_PRIORITY. */
-void thread_set_priority(int new_priority) { thread_current()->priority = new_priority; }
+void thread_set_priority(int new_priority) {
+  struct thread *curr = thread_current();
+  int old_priority = curr->priority;
+  curr->priority = new_priority;
+  if (old_priority > new_priority) {  // 만약 우선순위가 더 낮아졌고, ready_list에 원소가 있을 떄
+    thread_yield();                   // yield를 통해 뒤로 보냄
+  }
+}
 
 /* Returns the current thread's priority. */
 int thread_get_priority(void) { return thread_current()->priority; }
@@ -501,6 +531,10 @@ static void do_schedule(int status) {
 }
 
 static void schedule(void) {
+  struct list_elem *e;
+  for (e = list_begin(&ready_list); e != list_end(&ready_list); e = list_next(e)) {
+    ;
+  }
   struct thread *curr = running_thread();      // 레지스터 rsp를 활용하여 현재 돌고
                                                // 있는 쓰레드 포인터를 찾음
   struct thread *next = next_thread_to_run();  // ready_list에서 쓰레드 하나를 pop 함.
@@ -562,4 +596,11 @@ struct list *get_ready_list() {
 }
 struct list *get_sleep_list() {
   return &sleep_list;
+}
+
+bool thread_priority_less(const struct list_elem *a, const struct list_elem *b, void *aux) {
+  struct thread *thread_a = list_entry(a, struct thread, elem);
+  struct thread *thread_b = list_entry(b, struct thread, elem);
+
+  return thread_a->priority > thread_b->priority;
 }
