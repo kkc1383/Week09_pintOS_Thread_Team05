@@ -160,7 +160,7 @@ static void timer_interrupt(struct intr_frame* args UNUSED) {
 
   if (is_wake) {
     struct thread *current_thread = thread_current();
-    int highest_priority = get_front_ready_list();
+    int highest_priority = get_highest_priority_ready();
     if (current_thread->priority < highest_priority) {
       intr_yield_on_return();
     }
