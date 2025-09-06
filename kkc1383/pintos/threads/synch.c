@@ -106,10 +106,11 @@ void sema_up(struct semaphore *sema) {
   ASSERT(sema != NULL);
 
   old_level = intr_disable();
-  if (!list_empty(&sema->waiters)) {
-    thread_unblock(list_entry(list_pop_front(&sema->waiters), struct thread, elem));
-  }
   sema->value++;
+  if (!list_empty(&sema->waiters)) {
+    struct thread *t = list_entry(list_pop_front(&sema->waiters), struct thread, elem);
+    thread_unblock(t);
+  }
   intr_set_level(old_level);
 }
 
@@ -295,6 +296,7 @@ void cond_signal(struct condition *cond, struct lock *lock UNUSED) {
     for (e = list_begin(&cond->waiters); e != list_end(&cond->waiters); e = list_next(e)) {
       struct semaphore_elem *sema_elem = list_entry(e, struct semaphore_elem, elem);
 
+      // list_front 쓰기전에 원소가 있는지 없는지 먼저 확인할 것
       struct thread *waiting_thread = list_entry(list_front(&sema_elem->semaphore.waiters), struct thread, elem);
 
       if (waiting_thread->priority > max_priority) {
