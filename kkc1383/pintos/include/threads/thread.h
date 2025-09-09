@@ -5,6 +5,7 @@
 #include <list.h>
 #include <stdint.h>
 
+#include "threads/fixed-point.h"
 #include "threads/interrupt.h"
 
 #ifdef VM
@@ -78,7 +79,7 @@ typedef int tid_t;
  * The first symptom of either of these problems will probably be
  * an assertion failure in thread_current(), which checks that
  * the `magic' member of the running thread's `struct thread' is
- * set to THREAD_MAGIC.  Stack overflow will normally change this
+ * set to THREAD_MAGIC.  Stack overflow will normally ge this
  * value, triggering the assertion. */
 /* The `elem' member has a dual purpose.  It can be an element in
  * the run queue (thread.c), or it can be an element in a
@@ -97,6 +98,16 @@ struct thread {
   struct list_elem elem;       /* List element. */
   int64_t wake_tick;           /* 쓰레드를 깨울 시간 */
   struct list_elem sleep_elem; /* sleep_list에서의 연결리스트 노드 */
+  struct list_elem all_elem;   /* all_list에서의 연결리스트 노드 */
+
+  int original_priority;         /* 원래 우선순위(기부 이전) */
+  struct list acquired_locks;    /* 현재 보유(점유) 중인 락들 */
+  struct lock *waiting_for_lock; /* 내가 기다리고 있는 락 */
+  int is_donated;                /* 현재 우선순위가 기부받고 있는 상황인지 */
+
+  /* mlfqs 전용*/
+  int nice;           /* CPU를 양보하는 척도 (-20~20) */
+  fixed_t recent_cpu; /* 최근 CPU 사용량 (fixed-point)*/
 
 #ifdef USERPROG
   /* Owned by userprog/process.c. */
@@ -142,13 +153,17 @@ void thread_set_priority(int);
 int thread_get_nice(void);
 void thread_set_nice(int);
 int thread_get_recent_cpu(void);
+void thread_update_all_recent_cpu(void);
 int thread_get_load_avg(void);
-
+void thread_update_load_avg(void);
 void do_iret(struct intr_frame *tf);
 
-struct list *get_ready_list();
-struct list *get_sleep_list();
+struct list *get_ready_list(void);
+struct list *get_sleep_list(void);
 
-bool thread_priority_less(const struct list_elem *a, const struct list_elem *b, void *aux);
+void thread_update_all_priority(void);
+void mlfqs_update_priority(struct thread *t);
+bool thread_priority_less(const struct list_elem *, const struct list_elem *, void *);
+bool is_not_idle(struct thread *);
 
 #endif /* threads/thread.h */

@@ -45,8 +45,6 @@ void timer_init(void) {
   outb(0x40, count >> 8);
 
   intr_register_ext(0x20, timer_interrupt, "8254 Timer");
-
-  list_init(get_sleep_list());  // 전역 sleep_list 초기화
 }
 
 /* Calibrates loops_per_tick, used to implement brief delays. */
@@ -88,9 +86,7 @@ int64_t timer_elapsed(int64_t then) { return timer_ticks() - then; }
 /* Suspends execution for approximately TICKS timer ticks. */
 void timer_sleep(int64_t ticks) {
   int64_t start = timer_ticks();
-
   ASSERT(intr_get_level() == INTR_ON);
-
   // edge case 처리 : tick가 0 이하라면?
   if (ticks <= 0) return;
 
@@ -138,6 +134,25 @@ static void timer_interrupt(struct intr_frame *args UNUSED) {
     //깨울 때라면
     list_pop_front(get_sleep_list());
     thread_unblock(sleep_thread);
+  }
+
+  /* recent_cpu 증가 */
+  if (thread_mlfqs) {  // mlqfs일 때만
+    struct thread *curr = thread_current();
+    if (is_not_idle(curr)) {                               // idle이 아닐 때만
+      curr->recent_cpu = ADD_FP_INT(curr->recent_cpu, 1);  // 현재 스레드의 recent_cpu를 1 올린다
+    }
+
+    // priority 최신화
+    if (ticks % 4 == 0) {
+      thread_update_all_priority();
+    }
+    /* load_avg 최신화 */
+    if (ticks % TIMER_FREQ == 0) {  // 1초 마다
+      thread_update_load_avg();
+      thread_update_all_recent_cpu();
+      thread_update_all_priority();
+    }
   }
 }
 
