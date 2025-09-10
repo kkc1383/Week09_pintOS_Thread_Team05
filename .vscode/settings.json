@@ -13,6 +13,10 @@
     "clang-format.style": "file",
     "files.associations": {
         "thread.h": "c",
-        "random": "c"
+        "random": "c",
+        "synch.h": "c",
+        "flags.h": "c",
+        "fixed-point.h": "c",
+        "tests.h": "c"
     }
 }
