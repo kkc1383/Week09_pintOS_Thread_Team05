@@ -30,7 +30,6 @@ static intr_handler_func timer_interrupt;
 static bool too_many_loops(unsigned loops);
 static void busy_wait(int64_t loops);
 static void real_time_sleep(int64_t num, int32_t denom);
-static bool wake_tick_less(const struct list_elem *a, const struct list_elem *b, void *aux);
 
 /* Sets up the 8254 Programmable Interval Timer (PIT) to
    interrupt PIT_FREQ times per second, and registers the
@@ -85,28 +84,13 @@ int64_t timer_elapsed(int64_t then) { return timer_ticks() - then; }
 
 /* Suspends execution for approximately TICKS timer ticks. */
 void timer_sleep(int64_t ticks) {
+  if (ticks < 0) {
+    return;
+  }
   int64_t start = timer_ticks();
-  ASSERT(intr_get_level() == INTR_ON);
-  // edge case 처리 : tick가 0 이하라면?
-  if (ticks <= 0) return;
-
-  // 현제 스레드 가져오기
-  struct thread *curr = thread_current();
-
-  // wake_tick 설정
-  curr->wake_tick = start + ticks;
-
-  // 인터럽트 끄기
-  enum intr_level old_level = intr_disable();
-
-  // sleep_list에 추가
-  list_insert_ordered(get_sleep_list(), &curr->sleep_elem, wake_tick_less, NULL);
-
-  // thread_block() 호출, 재 schedule 될 때까지 대기
-  thread_block();
-
-  // 인터럽트 복원
-  intr_set_level(old_level);
+  int64_t w_tick = ticks + start;
+  thread_sleep_until(w_tick);
+  thread_yield();
 }
 
 /* Suspends execution for approximately MS milliseconds. */
@@ -119,45 +103,15 @@ void timer_usleep(int64_t us) { real_time_sleep(us, 1000 * 1000); }
 void timer_nsleep(int64_t ns) { real_time_sleep(ns, 1000 * 1000 * 1000); }
 
 /* Prints timer statistics. */
-void timer_print_stats(void) { printf("Timer: %" PRId64 " ticks\n", timer_ticks()); }
+void timer_print_stats(void) {
+  printf("Timer: %" PRId64 " ticks\n", timer_ticks());
+}
 
 /* Timer interrupt handler. */
 static void timer_interrupt(struct intr_frame *args UNUSED) {
   ticks++;
   thread_tick();
-
-  // 잠든 쓰레드를 깨우자
-  while (!list_empty(get_sleep_list())) {
-    struct thread *sleep_thread = list_entry(list_front(get_sleep_list()), struct thread, sleep_elem);
-    if (sleep_thread->wake_tick > ticks)  // wake_tick이 흐른 시간보다 크다면, 아직 깨울 때가 아님
-      break;
-    //깨울 때라면
-    list_pop_front(get_sleep_list());
-    thread_unblock(sleep_thread);
-  }
-
-  /* recent_cpu 증가 */
-  if (thread_mlfqs) {  // mlqfs일 때만
-    struct thread *curr = thread_current();
-    if (is_not_idle(curr)) {                               // idle이 아닐 때만
-      curr->recent_cpu = ADD_FP_INT(curr->recent_cpu, 1);  // 현재 스레드의 recent_cpu를 1 올린다
-    }
-
-    // priority 최신화
-    if (ticks % 4 == 0) {
-      // 원래 모든 쓰레드를 순회해야하지만, 어짜피 바뀐건 현재쓰레드의 recent_cpu밖에 없다.
-      mlfqs_update_priority(thread_current());
-      if (thread_current()->priority <= max_priority_mlfqs_queue()) {
-        intr_yield_on_return();  // 핸들러 내부이므로 핸들러끝나고 yield
-      }
-    }
-    /* load_avg 최신화 */
-    if (ticks % TIMER_FREQ == 0) {  // 1초 마다
-      thread_update_load_avg();
-      thread_update_all_recent_cpu();
-      thread_update_all_priority();
-    }
-  }
+  thread_wake_expired(timer_ticks());
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
@@ -210,11 +164,4 @@ static void real_time_sleep(int64_t num, int32_t denom) {
     ASSERT(denom % 1000 == 0);
     busy_wait(loops_per_tick * num / 1000 * TIMER_FREQ / (denom / 1000));
   }
-}
-
-static bool wake_tick_less(const struct list_elem *a, const struct list_elem *b, void *aux) {
-  struct thread *thread_a = list_entry(a, struct thread, sleep_elem);
-  struct thread *thread_b = list_entry(b, struct thread, sleep_elem);
-
-  return thread_a->wake_tick < thread_b->wake_tick;
 }
