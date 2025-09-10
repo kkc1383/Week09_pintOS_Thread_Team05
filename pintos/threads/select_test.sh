@@ -179,7 +179,7 @@ fi
       eval "${cmd}" 2>&1 | tee "${dir}/${test}.output"
 
       # 종료 후 체크 스크립트로 .result 생성
-      repo_root="${SCRIPT_DIR}/.."   # 리포지터리 루트(pintos/) 경로
+      repo_root="${SCRIPT_DIR}/.."   # 리포지터리 루트(origin_pintos/) 경로
       ck="${repo_root}/${dir}/${test}.ck"
       if [[ -f "$ck" ]]; then
         perl -I "${repo_root}" \

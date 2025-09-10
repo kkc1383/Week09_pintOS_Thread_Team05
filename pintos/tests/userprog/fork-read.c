@@ -48,7 +48,7 @@ test_main (void)
         fail ("expected text differs from actual");
       }
 
-    char magic_sentence[17] = "pintos is funny!";
+    char magic_sentence[17] = "origin_pintos is funny!";
     memcpy(buffer, magic_sentence, 17);
 
     msg ("Child: %s", buffer);
