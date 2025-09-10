@@ -176,7 +176,7 @@ void thread_tick(void) {
   /* Enforce preemption. */
   if (++thread_ticks >= TIME_SLICE) intr_yield_on_return();
 }
-
+ 
 /* Prints thread statistics. */
 void thread_print_stats(void) {
   printf("Thread: %lld idle ticks, %lld kernel ticks, %lld user ticks\n", idle_ticks, kernel_ticks, user_ticks);
